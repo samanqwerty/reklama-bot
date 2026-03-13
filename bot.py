@@ -1,9 +1,8 @@
-import asyncio
 import logging
 import json
 import os
 from telegram import Update
-from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, MessageHandler, ChatMemberHandler, filters, ContextTypes
 from telegram.error import TelegramError
 
 # ============================================================
@@ -68,6 +67,7 @@ async def send_reklama(context: ContextTypes.DEFAULT_TYPE):
 # ============================================================
 
 async def on_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Eski usul: message orqali qo'shilganda"""
     if not update.message or not update.message.new_chat_members:
         return
 
@@ -77,12 +77,31 @@ async def on_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_title = update.effective_chat.title or "Noma'lum guruh"
             active_groups.add(chat_id)
             save_groups(active_groups)
-            logger.info(f"🆕 Yangi guruh: {chat_title} ({chat_id})")
+            logger.info(f"🆕 Yangi guruh (message): {chat_title} ({chat_id})")
 
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=f"Assalomu alaykum "
-            )
+
+async def on_chat_member_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Yangi usul: ChatMemberUpdated orqali qo'shilganda"""
+    result = update.my_chat_member
+    if not result:
+        return
+
+    new_status = result.new_chat_member.status
+    old_status = result.old_chat_member.status
+    chat_id = update.effective_chat.id
+    chat_title = update.effective_chat.title or "Noma'lum guruh"
+
+    # Bot guruhga qo'shildi yoki admin bo'ldi
+    if new_status in ("member", "administrator") and old_status in ("left", "kicked", "restricted"):
+        active_groups.add(chat_id)
+        save_groups(active_groups)
+        logger.info(f"🆕 Yangi guruh (update): {chat_title} ({chat_id})")
+
+    # Bot guruhdan chiqarildi
+    elif new_status in ("left", "kicked"):
+        active_groups.discard(chat_id)
+        save_groups(active_groups)
+        logger.info(f"🚪 Guruhdan chiqarildi (update): {chat_title} ({chat_id})")
 
 # ============================================================
 # BOT GURUHDAN CHIQARILGANDA
@@ -121,8 +140,8 @@ def main():
         .build()
     )
 
+    app.add_handler(ChatMemberHandler(on_chat_member_update, ChatMemberHandler.MY_CHAT_MEMBER))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, on_new_member))
-    app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, on_left_member))
 
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
