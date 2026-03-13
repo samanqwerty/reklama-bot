@@ -81,7 +81,7 @@ async def on_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"✅ Reklama bot faollashdi!\n⏱ Har {INTERVAL_MINUTES} daqiqada reklama yuboriladi."
+                text=f"Assalomu alaykum "
             )
 
 # ============================================================
