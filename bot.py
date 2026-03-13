@@ -41,6 +41,7 @@ active_groups: set = load_groups()
 # ============================================================
 
 async def send_reklama(context: ContextTypes.DEFAULT_TYPE):
+    global active_groups
     if not active_groups:
         logger.info("Hozircha guruh yo'q.")
         return
